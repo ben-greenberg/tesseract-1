@@ -26,7 +26,7 @@
 #include <tesseract_common/macros.h>
 TESSERACT_COMMON_IGNORE_WARNINGS_PUSH
 #include <jsoncpp/json/json.h>
-#include <ros/console.h>
+//#include <ros/console.h>
 #include <trajopt/plot_callback.hpp>
 #include <trajopt/problem_description.hpp>
 #include <trajopt_utils/config.hpp>
@@ -51,7 +51,7 @@ bool TrajOptPlanner::solve(PlannerResponse& response)
     bool parse_success = reader.parse(request_.config.c_str(), root);
     if (!parse_success)
     {
-      ROS_FATAL("Failed to pass valid json file in the request");
+      //ROS_FATAL("Failed to pass valid json file in the request");
       response.status_code = -2;
       response.status_description = status_code_map_[-2];
       return false;
@@ -59,9 +59,9 @@ bool TrajOptPlanner::solve(PlannerResponse& response)
   }
   else
   {
-    ROS_FATAL("Invalid config format: %s. Only json format is currently "
-              "support for this planner.",
-              request_.config_format.c_str());
+//    ROS_FATAL("Invalid config format: %s. Only json format is currently "
+//              "support for this planner.",
+//              request_.config_format.c_str());
     response.status_code = -1;
     response.status_description = status_code_map_[-1];
     return false;
@@ -85,9 +85,9 @@ bool TrajOptPlanner::solve(PlannerResponse& response, const TrajOptPlannerConfig
   }
 
   // Optimize
-  ros::Time tStart = ros::Time::now();
+  //ros::Time tStart = ros::Time::now();
   opt.optimize();
-  ROS_INFO("planning time: %.3f", (ros::Time::now() - tStart).toSec());
+  //ROS_INFO("planning time: %.3f", (ros::Time::now() - tStart).toSec());
 
   // Check and report collisions
   std::vector<tesseract_collision::ContactResultMap> collisions;
@@ -117,7 +117,7 @@ bool TrajOptPlanner::solve(PlannerResponse& response, const TrajOptPlannerConfig
   }
   else
   {
-    ROS_INFO("Final trajectory is collision free");
+    //ROS_INFO("Final trajectory is collision free");
     response.status_code = 0;
     response.status_description = status_code_map_[0] + ": " + sco::statusToString(opt.results().status);
   }
