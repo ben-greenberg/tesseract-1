@@ -147,15 +147,19 @@ std::shared_ptr<trajopt::ProblemConstructionInfo> TrajOptPlannerFreespaceConfig:
    */
   int cost_first_step = 0;
   int cost_last_step = num_steps - 1;
+  bool first_step_fixed = false;
+  bool last_step_fixed = false;
   if (target_waypoints.front()->getType() == WaypointType::JOINT_WAYPOINT ||
       target_waypoints.front()->getType() == WaypointType::JOINT_TOLERANCED_WAYPOINT)
   {
     ++cost_first_step;
+    first_step_fixed = true;
   }
   if (target_waypoints.back()->getType() == WaypointType::JOINT_WAYPOINT ||
       target_waypoints.back()->getType() == WaypointType::JOINT_TOLERANCED_WAYPOINT)
   {
     --cost_last_step;
+    last_step_fixed = true;
   }
 
   // Set costs for the rest of the points
@@ -192,8 +196,10 @@ std::shared_ptr<trajopt::ProblemConstructionInfo> TrajOptPlannerFreespaceConfig:
 
     // Update the term info with the (possibly) new start and end state indices for which to apply this cost
     std::shared_ptr<trajopt::CollisionTermInfo> ct = std::static_pointer_cast<trajopt::CollisionTermInfo>(ti);
-    ct->first_step = cost_first_step;
-    ct->last_step = cost_last_step;
+    ct->first_step = 0;
+    ct->last_step = num_steps - 1;
+    ct->first_step_fixed = first_step_fixed;
+    ct->last_step_fixed = last_step_fixed;
 
     pci.cost_infos.push_back(ct);
   }
