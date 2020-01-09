@@ -71,23 +71,61 @@ tesseract_common::StatusCode OMPLFreespacePlanner<PlannerType>::solve(PlannerRes
     return config_status;
   }
 
-  ompl::tools::OptimizePlan op(simple_setup_->getProblemDefinition());
-  for (auto i = 0; i < config_->num_threads; ++i)
-  {
-    std::shared_ptr<PlannerType> planner = std::make_shared<PlannerType>(simple_setup_->getSpaceInformation());
-    config_->settings.apply(*planner);
-    op.addPlanner(planner);
-  }
-  // Solve problem. Results are stored in the response
-  ompl::base::PlannerStatus status = op.solve(config_->planning_time,
-                                              static_cast<unsigned>(config_->max_solutions),
-                                              static_cast<unsigned>(config_->num_threads));
+//  ompl::tools::OptimizePlan op(simple_setup_->getProblemDefinition());
+//  for (auto i = 0; i < config_->num_threads; ++i)
+//  {
+//    std::shared_ptr<PlannerType> planner = std::make_shared<PlannerType>(simple_setup_->getSpaceInformation());
+//    config_->settings.apply(*planner);
+//    planner->setup();
+//    op.addPlanner(planner);
+//  }
+//  // Solve problem. Results are stored in the response
+//  ompl::base::PlannerStatus status = op.solve(config_->planning_time,
+//                                              static_cast<unsigned>(config_->max_solutions),
+//                                              static_cast<unsigned>(config_->num_threads));
 
+    ompl::tools::ParallelPlan pp(simple_setup_->getProblemDefinition());
+    for (auto i = 0; i < config_->num_threads; ++i)
+    {
+      std::shared_ptr<PlannerType> planner = std::make_shared<PlannerType>(simple_setup_->getSpaceInformation());
+      config_->settings.apply(*planner);
+      planner->setProblemDefinition(simple_setup_->getProblemDefinition());
+      planner->setup();
+      pp.addPlanner(planner);
+    }
+    // Solve problem. Results are stored in the response
+    ompl::base::PlannerStatus status = pp.solve(config_->planning_time,
+                                                1,
+                                                static_cast<unsigned>(config_->max_solutions),
+                                                false);
+
+
+//  std::shared_ptr<PlannerType> planner = std::make_shared<PlannerType>(simple_setup_->getSpaceInformation());
+//  config_->settings.apply(*planner);
+//  planner->setProblemDefinition(simple_setup_->getProblemDefinition());
+//  planner->setup();
+//  ompl::base::PlannerStatus status = planner->solve(ompl::base::timedPlannerTerminationCondition(config_->planning_time, std::min(config_->planning_time/ 100.0, 0.1)));
+
+//  if (status != ompl::base::PlannerStatus::EXACT_SOLUTION)
   if (!status || !simple_setup_->haveExactSolutionPath())
   {
     response.status = tesseract_common::StatusCode(OMPLFreespacePlannerStatusCategory::ErrorFailedToFindValidSolution,
                                                    status_category_);
+    std::cout << std::endl << "#############" << std::endl;
+    std::cout << response.status.message() << std::endl;
+    std::cout << "#############" << std::endl;
     return response.status;
+  }
+
+  tesseract_common::TrajArray check_traj = toTrajArray(simple_setup_->getSolutionPath());
+  if ((check_traj.row(0) - std::static_pointer_cast<JointWaypoint>(config_->start_waypoint)->getPositions()).norm() > 1e-3)
+  {
+    CONSOLE_BRIDGE_logWarn("Start position of the returned trajectory does not match start waypoint, trajectory size %i!", check_traj.rows());
+  }
+
+  if ((check_traj.row(check_traj.rows() - 1)  - std::static_pointer_cast<JointWaypoint>(config_->end_waypoint)->getPositions()).norm() > 1e-3)
+  {
+    CONSOLE_BRIDGE_logWarn("End position of the returned trajectory does not match end waypoint, trajectory size %i!", check_traj.rows());
   }
 
   if (config_->simplify)
@@ -144,6 +182,9 @@ tesseract_common::StatusCode OMPLFreespacePlanner<PlannerType>::solve(PlannerRes
     response.status = tesseract_common::StatusCode(OMPLFreespacePlannerStatusCategory::SolutionFound, status_category_);
     CONSOLE_BRIDGE_logInform("%s, final trajectory is collision free", name_.c_str());
   }
+  std::cout << std::endl << "#############" << std::endl;
+  std::cout << response.status.message() << std::endl;
+  std::cout << "#############" << std::endl;
 
   return response.status;
 }
@@ -365,6 +406,8 @@ bool OMPLFreespacePlanner<PlannerType>::setConfiguration(const OMPLFreespacePlan
   // make sure the planners run until the time limit, and get the best possible solution
   simple_setup_->getProblemDefinition()->setOptimizationObjective(
       std::make_shared<ompl::base::PathLengthOptimizationObjective>(simple_setup_->getSpaceInformation()));
+
+  simple_setup_->getSpaceInformation()->setup();
 
   discrete_contact_manager_ = env->getDiscreteContactManager();
   discrete_contact_manager_->setActiveCollisionObjects(adj_map_->getActiveLinkNames());
